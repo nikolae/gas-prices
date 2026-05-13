@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#1e2330"/>
+
+  <!-- Gas pump body -->
+  <rect x="130" y="180" width="160" height="220" rx="12" fill="#4ade80"/>
+
+  <!-- Pump screen -->
+  <rect x="152" y="204" width="116" height="72" rx="8" fill="#0f1117"/>
+
+  <!-- Price text on screen -->
+  <text x="210" y="252" font-family="monospace" font-size="36" font-weight="700"
+        fill="#4ade80" text-anchor="middle">$</text>
+
+  <!-- Pump nozzle arm -->
+  <rect x="290" y="210" width="70" height="16" rx="8" fill="#94a3b8"/>
+
+  <!-- Nozzle hang -->
+  <rect x="344" y="210" width="16" height="60" rx="8" fill="#94a3b8"/>
+
+  <!-- Nozzle tip -->
+  <rect x="330" y="258" width="46" height="16" rx="8" fill="#64748b"/>
+
+  <!-- Pump base -->
+  <rect x="118" y="390" width="184" height="20" rx="8" fill="#2d3748"/>
+
+  <!-- Fuel grade dots -->
+  <circle cx="178" cy="330" r="12" fill="#4ade80"/>
+  <circle cx="210" cy="330" r="12" fill="#facc15"/>
+  <circle cx="242" cy="330" r="12" fill="#fb923c"/>
+</svg>
