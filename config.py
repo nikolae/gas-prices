@@ -1,14 +1,18 @@
-# Station IDs from GasBuddy — find them in the URL on gasbuddy.com/station/XXXXXX
-# Example: https://www.gasbuddy.com/station/41800 -> id is "41800"
-STATIONS = [
-    {"id": "44946", "nickname": "Costco North"},
-    {"id": "164236", "nickname": "Murphy Express 144th"},
-    {"id": "119297", "nickname": "King Soopers 136th"},
-    {"id": "208619", "nickname": "Costco Work"},
-]
+import os
+import json
 
-# How long to cache prices before re-fetching (seconds)
-CACHE_TTL_SECONDS = 900  # 15 minutes
+def _parse_stations() -> list[dict]:
+    raw = os.environ.get("STATIONS")
+    if raw:
+        return json.loads(raw)
+    # fallback for local dev — override via STATIONS env var in Docker
+    return [
+        {"id": "44946",  "nickname": "Costco North"},
+        {"id": "164236", "nickname": "Murphy Express 144th"},
+        {"id": "119297", "nickname": "King Soopers 136th"},
+        {"id": "208619", "nickname": "Costco Work"},
+    ]
 
-# Flask port
-PORT = 5000
+STATIONS = _parse_stations()
+CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", 900))
+PORT = int(os.environ.get("PORT", 5050))

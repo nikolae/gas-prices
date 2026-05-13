@@ -1,0 +1,19 @@
+services:
+  gas-prices:
+    build: .
+    image: gas-prices:latest
+    container_name: gas-prices
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5050}:${PORT:-5050}"
+    volumes:
+      - gas-prices-data:/data
+    environment:
+      - PORT=${PORT:-5050}
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-900}
+      - DB_PATH=/data/gas_prices.db
+      # Paste your stations JSON here or set STATIONS in Portainer's env editor:
+      # - STATIONS=[{"id":"44946","nickname":"Costco North"},{"id":"164236","nickname":"Murphy Express 144th"}]
+
+volumes:
+  gas-prices-data:

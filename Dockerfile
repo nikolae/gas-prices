@@ -7,6 +7,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 5000
+ENV PORT=5050
+ENV CACHE_TTL_SECONDS=900
+ENV DB_PATH=/data/gas_prices.db
+
+VOLUME ["/data"]
+
+EXPOSE ${PORT}
 
 CMD ["python", "app.py"]
