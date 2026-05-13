@@ -154,6 +154,7 @@
   <div class="card {% if station.error %}error{% endif %}">
     <div class="card-header">
       <div class="station-name">{{ station.name or station.nickname }}</div>
+      <div class="cached-at">Updated {{ ((now - station.cached_at) / 60)|int }} min ago</div>
     </div>
 
     {% if station.error %}
@@ -183,9 +184,6 @@
     </div>
     {% endif %}
 
-    <div class="cached-at">
-      Updated {{ ((now - station.cached_at) / 60)|int }} min ago
-    </div>
   </div>
   {% endfor %}
 </div>
