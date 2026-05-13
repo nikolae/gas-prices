@@ -7,6 +7,7 @@
   <title>Local Gas Prices</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -51,13 +52,35 @@
 
     .card.error { border-color: #7f1d1d; background: #1c1010; }
 
-    .card-header { margin-bottom: 1rem; }
+    .card-header {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .drag-handle {
+      color: #334155;
+      cursor: grab;
+      font-size: 1rem;
+      line-height: 1.3;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .drag-handle:active { cursor: grabbing; }
+
+    .card-header-text { flex: 1; }
 
     .station-name {
       font-size: 1.05rem;
       font-weight: 600;
       color: #f1f5f9;
       line-height: 1.3;
+    }
+
+    .sortable-ghost {
+      opacity: 0.3;
     }
 
     .prices { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -151,10 +174,13 @@
 
 <div class="grid">
   {% for station in stations %}
-  <div class="card {% if station.error %}error{% endif %}">
+  <div class="card {% if station.error %}error{% endif %}" data-id="{{ station.id }}">
     <div class="card-header">
-      <div class="station-name">{{ station.name or station.nickname }}</div>
-      <div class="cached-at">Updated {{ ((now - station.cached_at) / 60)|int }} min ago</div>
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <div class="card-header-text">
+        <div class="station-name">{{ station.name or station.nickname }}</div>
+        <div class="cached-at">Updated {{ ((now - station.cached_at) / 60)|int }} min ago</div>
+      </div>
     </div>
 
     {% if station.error %}
@@ -283,8 +309,34 @@ async function loadChart(stationId, days, btn) {
   });
 }
 
+const STORAGE_KEY = 'gas-prices-order';
+
+function saveOrder() {
+  const ids = [...document.querySelectorAll('.grid .card')].map(c => c.dataset.id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+}
+
+function applyOrder() {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  if (!saved.length) return;
+  const grid = document.querySelector('.grid');
+  saved.forEach(id => {
+    const card = grid.querySelector(`[data-id="${id}"]`);
+    if (card) grid.appendChild(card);
+  });
+}
+
 // Load default 7-day chart for every station on page load
 document.addEventListener('DOMContentLoaded', () => {
+  applyOrder();
+
+  Sortable.create(document.querySelector('.grid'), {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: saveOrder,
+  });
+
   {% for station in stations %}
   {% if not station.error %}
   loadChart('{{ station.id }}', 7, document.querySelector('#chart-{{ station.id }}')
