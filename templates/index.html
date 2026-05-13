@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="refresh" content="300" />
   <title>Local Gas Prices</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -26,29 +28,17 @@
       gap: 0.5rem;
     }
 
-    h1 {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: #f8fafc;
-    }
+    h1 { font-size: 1.6rem; font-weight: 700; color: #f8fafc; }
 
-    .meta {
-      font-size: 0.8rem;
-      color: #64748b;
-    }
-
-    .meta a {
-      color: #3b82f6;
-      text-decoration: none;
-    }
-
+    .meta { font-size: 0.8rem; color: #64748b; }
+    .meta a { color: #3b82f6; text-decoration: none; }
     .meta a:hover { text-decoration: underline; }
 
     .grid {
       max-width: 960px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 1.25rem;
     }
 
@@ -59,10 +49,7 @@
       padding: 1.25rem 1.5rem;
     }
 
-    .card.error {
-      border-color: #7f1d1d;
-      background: #1c1010;
-    }
+    .card.error { border-color: #7f1d1d; background: #1c1010; }
 
     .card-header { margin-bottom: 1rem; }
 
@@ -71,12 +58,6 @@
       font-weight: 600;
       color: #f1f5f9;
       line-height: 1.3;
-    }
-
-    .station-address {
-      font-size: 0.78rem;
-      color: #64748b;
-      margin-top: 0.2rem;
     }
 
     .prices { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -90,10 +71,7 @@
       border-radius: 8px;
     }
 
-    .grade {
-      font-size: 0.85rem;
-      color: #94a3b8;
-    }
+    .grade { font-size: 0.85rem; color: #94a3b8; }
 
     .price-value {
       font-size: 1.15rem;
@@ -102,16 +80,47 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .no-prices {
-      font-size: 0.85rem;
-      color: #475569;
-      padding: 0.5rem 0;
+    .no-prices { font-size: 0.85rem; color: #475569; padding: 0.5rem 0; }
+    .error-msg { font-size: 0.85rem; color: #f87171; padding: 0.5rem 0; }
+
+    .chart-wrap {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #2d3748;
+      position: relative;
+      height: 140px;
     }
 
-    .error-msg {
-      font-size: 0.85rem;
-      color: #f87171;
-      padding: 0.5rem 0;
+    .chart-wrap canvas { display: block; }
+
+    .chart-days {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.6rem;
+      justify-content: flex-end;
+    }
+
+    .chart-days button {
+      background: #252d3d;
+      border: 1px solid #374151;
+      color: #94a3b8;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .chart-days button.active {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+      color: #fff;
+    }
+
+    .chart-loading {
+      font-size: 0.75rem;
+      color: #475569;
+      text-align: center;
+      padding: 1rem 0;
     }
 
     .cached-at {
@@ -145,9 +154,6 @@
   <div class="card {% if station.error %}error{% endif %}">
     <div class="card-header">
       <div class="station-name">{{ station.name or station.nickname }}</div>
-      {% if station.address %}
-      <div class="station-address">{{ station.address }}</div>
-      {% endif %}
     </div>
 
     {% if station.error %}
@@ -165,6 +171,18 @@
       <div class="no-prices">No price data available.</div>
     {% endif %}
 
+    {% if not station.error %}
+    <div class="chart-wrap">
+      <div class="chart-days">
+        <button onclick="loadChart('{{ station.id }}', 1, this)">1d</button>
+        <button onclick="loadChart('{{ station.id }}', 7, this)" class="active">7d</button>
+        <button onclick="loadChart('{{ station.id }}', 30, this)">30d</button>
+      </div>
+      <div id="loading-{{ station.id }}" class="chart-loading">Loading history…</div>
+      <canvas id="chart-{{ station.id }}" style="display:none"></canvas>
+    </div>
+    {% endif %}
+
     <div class="cached-at">
       Updated {{ ((now - station.cached_at) / 60)|int }} min ago
     </div>
@@ -175,6 +193,108 @@
 <footer>
   Prices sourced from GasBuddy &nbsp;·&nbsp; Page auto-refreshes every 5 minutes
 </footer>
+
+<script>
+const GRADE_COLORS = {
+  Regular:  '#4ade80',
+  Midgrade: '#facc15',
+  Premium:  '#fb923c',
+  Diesel:   '#60a5fa',
+  E85:      '#c084fc',
+};
+
+const _charts = {};
+
+async function loadChart(stationId, days, btn) {
+  // Update active button
+  btn.closest('.chart-days').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const loading = document.getElementById(`loading-${stationId}`);
+  const canvas  = document.getElementById(`chart-${stationId}`);
+
+  loading.style.display = 'block';
+  canvas.style.display  = 'none';
+
+  let data;
+  try {
+    const res = await fetch(`/api/history/${stationId}?days=${days}`);
+    data = await res.json();
+  } catch {
+    loading.textContent = 'Could not load history.';
+    return;
+  }
+
+  const grades = Object.keys(data);
+  if (!grades.length) {
+    loading.textContent = 'No history yet — check back after prices are fetched.';
+    return;
+  }
+
+  loading.style.display = 'none';
+  canvas.style.display  = 'block';
+
+  const datasets = grades.map(grade => ({
+    label: grade,
+    data: data[grade].map(p => ({ x: p.time, y: p.price })),
+    borderColor: GRADE_COLORS[grade] || '#94a3b8',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    pointRadius: 2,
+    tension: 0.3,
+  }));
+
+  if (_charts[stationId]) {
+    _charts[stationId].destroy();
+  }
+
+  _charts[stationId] = new Chart(canvas, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } },
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(3)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { tooltipFormat: 'MMM d, h:mm a' },
+          ticks: { color: '#475569', maxTicksLimit: 6, font: { size: 10 } },
+          grid: { color: '#1e2a3a' },
+        },
+        y: {
+          ticks: {
+            color: '#475569',
+            font: { size: 10 },
+            callback: v => '$' + v.toFixed(2),
+          },
+          grid: { color: '#1e2a3a' },
+        },
+      },
+    },
+  });
+}
+
+// Load default 7-day chart for every station on page load
+document.addEventListener('DOMContentLoaded', () => {
+  {% for station in stations %}
+  {% if not station.error %}
+  loadChart('{{ station.id }}', 7, document.querySelector('#chart-{{ station.id }}')
+    .closest('.chart-wrap').querySelector('button.active'));
+  {% endif %}
+  {% endfor %}
+});
+</script>
 
 </body>
 </html>
