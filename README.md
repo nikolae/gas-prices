@@ -12,7 +12,9 @@ A local web dashboard that pulls gas prices from GasBuddy for specific stations 
 4. [Building the Docker Image](#4-building-the-docker-image)
 5. [Transferring the Image to Your Server](#5-transferring-the-image-to-your-server)
 6. [Deploying in Portainer](#6-deploying-in-portainer)
-7. [Environment Variable Reference](#7-environment-variable-reference)
+7. [Usage](#7-usage)
+8. [Resetting](#8-resetting)
+9. [Environment Variable Reference](#9-environment-variable-reference)
 
 ---
 
@@ -198,7 +200,71 @@ Price history is stored in a Docker named volume (`gas-prices-data`). It persist
 
 ---
 
-## 7. Environment Variable Reference
+## 7. Usage
+
+### Viewing Prices
+
+Open the dashboard in your browser. Each station shows its current prices by fuel grade. Prices are fetched from GasBuddy and cached — the card header shows how long ago they were last updated. The page auto-refreshes every 5 minutes.
+
+### Price History Graph
+
+Each card has a line graph showing price history per fuel grade. Use the **1d / 7d / 30d** buttons to change the time range. History is recorded every time prices are fetched (every 15 minutes by default), so the graph fills in over time.
+
+### Adding a Station
+
+1. Click **+ Add Station** in the top right
+2. Enter the GasBuddy station ID (see [Section 2](#2-finding-station-ids) for how to find it)
+3. Enter a nickname (optional — defaults to "Station {id}")
+4. Click **Add** — the app validates the ID by fetching prices before saving
+
+Added stations are stored in the database and persist across restarts.
+
+### Removing a Station
+
+Click the **✕** button in the top right corner of any card. The station is removed immediately and will not reappear on restart. Price history for that station is kept in the database in case you re-add it later.
+
+### Reordering Cards
+
+Drag the **⠿** handle on the left side of any card header to reorder. The order is saved in your browser's local storage and persists across page refreshes.
+
+### Force Refreshing Prices
+
+Click **Force refresh** in the header to clear the cache and immediately re-fetch prices from GasBuddy for all stations.
+
+---
+
+## 8. Resetting
+
+Deleting the stack in Portainer removes the container but **leaves the database volume intact**. To fully reset:
+
+### Full reset (wipes all stations and price history)
+
+1. In Portainer: **Stacks → gas-prices → Delete**
+2. In Portainer: **Volumes → gas-prices-data → Remove**
+
+On next deploy the stations will be re-seeded from the `STATIONS` environment variable.
+
+### Reset stations only (keeps price history)
+
+SSH into the server and run:
+
+```bash
+sqlite3 /var/lib/docker/volumes/gas-prices-data/_data/gas_prices.db \
+  "DELETE FROM stations;"
+```
+
+On next restart the stations table is empty so it re-seeds from the `STATIONS` env var.
+
+### Reset price history only (keeps stations)
+
+```bash
+sqlite3 /var/lib/docker/volumes/gas-prices-data/_data/gas_prices.db \
+  "DELETE FROM price_history;"
+```
+
+---
+
+## 9. Environment Variable Reference
 
 | Variable | Default | Description |
 |---|---|---|
