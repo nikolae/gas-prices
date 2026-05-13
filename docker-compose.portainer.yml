@@ -1,0 +1,18 @@
+services:
+  gas-prices:
+    image: gas-prices:latest
+    container_name: gas-prices
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5050}:${PORT:-5050}"
+    volumes:
+      - gas-prices-data:/data
+    environment:
+      - PORT=${PORT:-5050}
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-900}
+      - DB_PATH=/data/gas_prices.db
+      # Set STATIONS in Portainer's environment editor, e.g.:
+      # [{"id":"44946","nickname":"Costco North"},{"id":"164236","nickname":"Murphy Express 144th"},{"id":"119297","nickname":"King Soopers 136th"},{"id":"208619","nickname":"Costco Work"}]
+
+volumes:
+  gas-prices-data:
