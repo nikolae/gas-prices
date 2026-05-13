@@ -23,18 +23,98 @@
       max-width: 960px;
       margin: 0 auto 2rem;
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.75rem;
     }
 
     h1 { font-size: 1.6rem; font-weight: 700; color: #f8fafc; }
 
-    .meta { font-size: 0.8rem; color: #64748b; }
+    .meta { font-size: 0.8rem; color: #64748b; display: flex; align-items: center; gap: 0.75rem; }
     .meta a { color: #3b82f6; text-decoration: none; }
     .meta a:hover { text-decoration: underline; }
 
+    /* Add station button */
+    .btn-add {
+      background: #1d4ed8;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .btn-add:hover { background: #2563eb; }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: #1e2330;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .modal h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #f1f5f9; }
+
+    .modal label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem; }
+
+    .modal input {
+      width: 100%;
+      background: #0f1117;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      margin-bottom: 0.85rem;
+    }
+    .modal input:focus { outline: none; border-color: #3b82f6; }
+
+    .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid #374151;
+      color: #94a3b8;
+      border-radius: 6px;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      background: #1d4ed8;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .modal-error {
+      font-size: 0.78rem;
+      color: #f87171;
+      margin-bottom: 0.75rem;
+      display: none;
+    }
+
+    /* Cards */
     .grid {
       max-width: 960px;
       margin: 0 auto;
@@ -67,7 +147,6 @@
       flex-shrink: 0;
       user-select: none;
     }
-
     .drag-handle:active { cursor: grabbing; }
 
     .card-header-text { flex: 1; }
@@ -79,9 +158,25 @@
       line-height: 1.3;
     }
 
-    .sortable-ghost {
-      opacity: 0.3;
+    .cached-at {
+      font-size: 0.72rem;
+      color: #475569;
+      margin-top: 0.15rem;
     }
+
+    .btn-remove {
+      background: none;
+      border: none;
+      color: #475569;
+      font-size: 1rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .btn-remove:hover { color: #f87171; }
+
+    .sortable-ghost { opacity: 0.3; }
 
     .prices { display: flex; flex-direction: column; gap: 0.5rem; }
 
@@ -146,13 +241,6 @@
       padding: 1rem 0;
     }
 
-    .cached-at {
-      margin-top: 0.75rem;
-      font-size: 0.72rem;
-      color: #475569;
-      text-align: right;
-    }
-
     footer {
       max-width: 960px;
       margin: 2rem auto 0;
@@ -166,13 +254,30 @@
 
 <header>
   <h1>⛽ Local Gas Prices</h1>
-  <span class="meta">
+  <div class="meta">
     Auto-refreshes every 5 min &nbsp;·&nbsp;
     <a href="/refresh">Force refresh</a>
-  </span>
+    <button class="btn-add" onclick="openModal()">+ Add Station</button>
+  </div>
 </header>
 
-<div class="grid">
+<!-- Add station modal -->
+<div class="modal-backdrop" id="modal" onclick="closeOnBackdrop(event)">
+  <div class="modal">
+    <h2>Add Station</h2>
+    <div class="modal-error" id="modal-error"></div>
+    <label for="inp-id">GasBuddy Station ID</label>
+    <input id="inp-id" type="text" placeholder="e.g. 44946" inputmode="numeric" />
+    <label for="inp-nick">Nickname</label>
+    <input id="inp-nick" type="text" placeholder="e.g. Costco North" />
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="btn-save" onclick="addStation()">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="grid" id="grid">
   {% for station in stations %}
   <div class="card {% if station.error %}error{% endif %}" data-id="{{ station.id }}">
     <div class="card-header">
@@ -181,6 +286,7 @@
         <div class="station-name">{{ station.name or station.nickname }}</div>
         <div class="cached-at">Updated {{ ((now - station.cached_at) / 60)|int }} min ago</div>
       </div>
+      <button class="btn-remove" title="Remove station" onclick="removeStation('{{ station.id }}', this)">✕</button>
     </div>
 
     {% if station.error %}
@@ -230,7 +336,6 @@ const GRADE_COLORS = {
 const _charts = {};
 
 async function loadChart(stationId, days, btn) {
-  // Update active button
   btn.closest('.chart-days').querySelectorAll('button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
@@ -268,9 +373,7 @@ async function loadChart(stationId, days, btn) {
     tension: 0.3,
   }));
 
-  if (_charts[stationId]) {
-    _charts[stationId].destroy();
-  }
+  if (_charts[stationId]) _charts[stationId].destroy();
 
   _charts[stationId] = new Chart(canvas, {
     type: 'line',
@@ -280,14 +383,8 @@ async function loadChart(stationId, days, btn) {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } },
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(3)}`,
-          },
-        },
+        legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(3)}` } },
       },
       scales: {
         x: {
@@ -297,11 +394,7 @@ async function loadChart(stationId, days, btn) {
           grid: { color: '#1e2a3a' },
         },
         y: {
-          ticks: {
-            color: '#475569',
-            font: { size: 10 },
-            callback: v => '$' + v.toFixed(2),
-          },
+          ticks: { color: '#475569', font: { size: 10 }, callback: v => '$' + v.toFixed(2) },
           grid: { color: '#1e2a3a' },
         },
       },
@@ -309,6 +402,7 @@ async function loadChart(stationId, days, btn) {
   });
 }
 
+// --- Card ordering ---
 const STORAGE_KEY = 'gas-prices-order';
 
 function saveOrder() {
@@ -319,18 +413,85 @@ function saveOrder() {
 function applyOrder() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   if (!saved.length) return;
-  const grid = document.querySelector('.grid');
+  const grid = document.getElementById('grid');
   saved.forEach(id => {
     const card = grid.querySelector(`[data-id="${id}"]`);
     if (card) grid.appendChild(card);
   });
 }
 
-// Load default 7-day chart for every station on page load
+// --- Add station modal ---
+function openModal() {
+  document.getElementById('inp-id').value = '';
+  document.getElementById('inp-nick').value = '';
+  document.getElementById('modal-error').style.display = 'none';
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('inp-id').focus();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+function closeOnBackdrop(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+}
+
+async function addStation() {
+  const id   = document.getElementById('inp-id').value.trim();
+  const nick = document.getElementById('inp-nick').value.trim();
+  const errEl = document.getElementById('modal-error');
+  const saveBtn = document.getElementById('btn-save');
+
+  errEl.style.display = 'none';
+
+  if (!id) {
+    errEl.textContent = 'Station ID is required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Adding…';
+
+  try {
+    const res = await fetch('/api/stations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, nickname: nick }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Something went wrong.';
+      errEl.style.display = 'block';
+      return;
+    }
+    closeModal();
+    location.reload();
+  } catch {
+    errEl.textContent = 'Network error — try again.';
+    errEl.style.display = 'block';
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Add';
+  }
+}
+
+async function removeStation(stationId, btn) {
+  if (!confirm('Remove this station?')) return;
+  const res = await fetch(`/api/stations/${stationId}`, { method: 'DELETE' });
+  if (res.ok) {
+    // Remove from saved order too
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved.filter(id => id !== stationId)));
+    btn.closest('.card').remove();
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   applyOrder();
 
-  Sortable.create(document.querySelector('.grid'), {
+  Sortable.create(document.getElementById('grid'), {
     handle: '.drag-handle',
     animation: 150,
     ghostClass: 'sortable-ghost',

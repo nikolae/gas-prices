@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-storage.init_db()
+storage.init_db(STATIONS)
 
 _price_cache: dict = {}
 _cache_timestamps: dict = {}
@@ -56,7 +56,7 @@ def fetch_all_stations() -> list[dict]:
     now = time.time()
     results = []
 
-    for cfg in STATIONS:
+    for cfg in storage.get_stations():
         sid = cfg["id"]
         age = now - _cache_timestamps.get(sid, 0)
 
@@ -90,6 +90,40 @@ def fetch_all_stations() -> list[dict]:
 def index():
     stations = fetch_all_stations()
     return render_template("index.html", stations=stations, now=time.time())
+
+
+@app.route("/api/stations", methods=["POST"])
+def api_add_station():
+    data = request.get_json()
+    station_id = str(data.get("id", "")).strip()
+    nickname = str(data.get("nickname", "")).strip() or f"Station {station_id}"
+
+    if not station_id.isdigit():
+        return jsonify({"error": "Invalid station ID"}), 400
+
+    # Validate by fetching prices
+    raw = asyncio.run(_fetch_station(station_id))
+    if raw is None:
+        return jsonify({"error": "Could not fetch prices — check the station ID"}), 400
+
+    storage.add_station(station_id, nickname)
+    _price_cache[station_id] = raw
+    _cache_timestamps[station_id] = time.time()
+    prices = _parse_prices(raw)
+    if prices:
+        storage.record_prices(station_id, prices)
+
+    log.info("Added station %s (%s)", station_id, nickname)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/stations/<station_id>", methods=["DELETE"])
+def api_remove_station(station_id: str):
+    storage.remove_station(station_id)
+    _price_cache.pop(station_id, None)
+    _cache_timestamps.pop(station_id, None)
+    log.info("Removed station %s", station_id)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/history/<station_id>")
