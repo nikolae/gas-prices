@@ -1,6 +1,6 @@
 # Gas Prices Dashboard
 
-A local web dashboard that pulls gas prices from GasBuddy for specific stations and displays them with historical price graphs.
+A local web dashboard that pulls gas prices from GasBuddy for specific stations and displays them with historical price graphs. Responsive layout — 2-column grid on desktop, single column on mobile. Supports dark and light themes.
 
 ---
 
@@ -219,6 +219,10 @@ Each card has a line graph showing price history per fuel grade. Use the **1d / 
 
 Added stations are stored in the database and persist across restarts.
 
+### Renaming a Station
+
+Click on any station name to edit it inline. Press **Enter** or click away to save. Press **Escape** to cancel. The new name is saved to the database immediately and persists across restarts.
+
 ### Removing a Station
 
 Click the **✕** button in the top right corner of any card. The station is removed immediately and will not reappear on restart. Price history for that station is kept in the database in case you re-add it later.
@@ -230,6 +234,10 @@ Drag the **⠿** handle on the left side of any card header to reorder. The orde
 ### Force Refreshing Prices
 
 Click **Force refresh** in the header to clear the cache and immediately re-fetch prices from GasBuddy for all stations.
+
+### Theme (Dark / Light)
+
+The dashboard defaults to your device's system theme. Click the **sun/moon** button in the header to toggle manually. Your preference is saved in your browser and applies instantly on future visits — no flash of the wrong theme on load.
 
 ---
 

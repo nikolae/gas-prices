@@ -8,19 +8,111 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"></script>
+  <!-- Apply saved theme immediately to prevent flash -->
+  <script>
+    (function() {
+      const saved = localStorage.getItem('gas-prices-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
   <style>
+    /* --- Theme variables --- */
+    :root {
+      --bg:             #0f1117;
+      --bg-card:        #1e2330;
+      --bg-card-error:  #1c1010;
+      --bg-row:         #252d3d;
+      --bg-input:       #0f1117;
+      --border:         #2d3748;
+      --border-error:   #7f1d1d;
+      --border-input:   #374151;
+      --text:           #e2e8f0;
+      --text-heading:   #f8fafc;
+      --text-station:   #f1f5f9;
+      --text-muted:     #94a3b8;
+      --text-dim:       #475569;
+      --text-footer:    #334155;
+      --text-price:     #4ade80;
+      --text-error:     #f87171;
+      --link:           #3b82f6;
+      --accent:         #1d4ed8;
+      --accent-hover:   #2563eb;
+      --grid-line:      #1e2a3a;
+      --handle:         #334155;
+      --skeleton-a:     #252d3d;
+      --skeleton-b:     #2d3748;
+      --modal-overlay:  rgba(0,0,0,0.6);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg:             #f1f5f9;
+        --bg-card:        #ffffff;
+        --bg-card-error:  #fef2f2;
+        --bg-row:         #f1f5f9;
+        --bg-input:       #ffffff;
+        --border:         #e2e8f0;
+        --border-error:   #fca5a5;
+        --border-input:   #cbd5e1;
+        --text:           #1e293b;
+        --text-heading:   #0f172a;
+        --text-station:   #1e293b;
+        --text-muted:     #64748b;
+        --text-dim:       #94a3b8;
+        --text-footer:    #94a3b8;
+        --text-price:     #16a34a;
+        --text-error:     #dc2626;
+        --link:           #2563eb;
+        --accent:         #2563eb;
+        --accent-hover:   #1d4ed8;
+        --grid-line:      #e2e8f0;
+        --handle:         #cbd5e1;
+        --skeleton-a:     #e2e8f0;
+        --skeleton-b:     #cbd5e1;
+        --modal-overlay:  rgba(0,0,0,0.3);
+      }
+    }
+
+    [data-theme="light"] {
+      --bg:             #f1f5f9;
+      --bg-card:        #ffffff;
+      --bg-card-error:  #fef2f2;
+      --bg-row:         #f1f5f9;
+      --bg-input:       #ffffff;
+      --border:         #e2e8f0;
+      --border-error:   #fca5a5;
+      --border-input:   #cbd5e1;
+      --text:           #1e293b;
+      --text-heading:   #0f172a;
+      --text-station:   #1e293b;
+      --text-muted:     #64748b;
+      --text-dim:       #94a3b8;
+      --text-footer:    #94a3b8;
+      --text-price:     #16a34a;
+      --text-error:     #dc2626;
+      --link:           #2563eb;
+      --accent:         #2563eb;
+      --accent-hover:   #1d4ed8;
+      --grid-line:      #e2e8f0;
+      --handle:         #cbd5e1;
+      --skeleton-a:     #e2e8f0;
+      --skeleton-b:     #cbd5e1;
+      --modal-overlay:  rgba(0,0,0,0.3);
+    }
+
+    /* --- Base --- */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
       padding: 2rem 1rem;
     }
 
     header {
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto 2rem;
       display: flex;
       align-items: center;
@@ -29,14 +121,14 @@
       gap: 0.75rem;
     }
 
-    h1 { font-size: 1.6rem; font-weight: 700; color: #f8fafc; }
+    h1 { font-size: 1.6rem; font-weight: 700; color: var(--text-heading); }
 
-    .meta { font-size: 0.8rem; color: #64748b; display: flex; align-items: center; gap: 0.75rem; }
-    .meta a { color: #3b82f6; text-decoration: none; }
+    .meta { font-size: 0.8rem; color: var(--text-dim); display: flex; align-items: center; gap: 0.75rem; }
+    .meta a { color: var(--link); text-decoration: none; }
     .meta a:hover { text-decoration: underline; }
 
     .btn-add {
-      background: #1d4ed8;
+      background: var(--accent);
       color: #fff;
       border: none;
       border-radius: 6px;
@@ -44,14 +136,26 @@
       font-size: 0.82rem;
       cursor: pointer;
     }
-    .btn-add:hover { background: #2563eb; }
+    .btn-add:hover { background: var(--accent-hover); }
 
-    /* Modal */
+    .btn-theme {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 0.3rem 0.6rem;
+      font-size: 1rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .btn-theme:hover { color: var(--text); border-color: var(--text-muted); }
+
+    /* --- Modal --- */
     .modal-backdrop {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.6);
+      background: var(--modal-overlay);
       z-index: 100;
       align-items: center;
       justify-content: center;
@@ -59,35 +163,35 @@
     .modal-backdrop.open { display: flex; }
 
     .modal {
-      background: #1e2330;
-      border: 1px solid #2d3748;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 1.5rem;
       width: 100%;
       max-width: 360px;
     }
 
-    .modal h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #f1f5f9; }
-    .modal label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem; }
+    .modal h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-station); }
+    .modal label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem; }
 
     .modal input {
       width: 100%;
-      background: #0f1117;
-      border: 1px solid #374151;
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
       border-radius: 6px;
       padding: 0.5rem 0.75rem;
-      color: #e2e8f0;
+      color: var(--text);
       font-size: 0.9rem;
       margin-bottom: 0.85rem;
     }
-    .modal input:focus { outline: none; border-color: #3b82f6; }
+    .modal input:focus { outline: none; border-color: var(--link); }
 
     .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
 
     .btn-cancel {
       background: transparent;
-      border: 1px solid #374151;
-      color: #94a3b8;
+      border: 1px solid var(--border-input);
+      color: var(--text-muted);
       border-radius: 6px;
       padding: 0.4rem 0.85rem;
       font-size: 0.82rem;
@@ -95,7 +199,7 @@
     }
 
     .btn-save {
-      background: #1d4ed8;
+      background: var(--accent);
       border: none;
       color: #fff;
       border-radius: 6px;
@@ -107,28 +211,32 @@
 
     .modal-error {
       font-size: 0.78rem;
-      color: #f87171;
+      color: var(--text-error);
       margin-bottom: 0.75rem;
       display: none;
     }
 
-    /* Cards */
+    /* --- Cards --- */
     .grid {
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
       gap: 1.25rem;
     }
 
+    @media (max-width: 500px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
     .card {
-      background: #1e2330;
-      border: 1px solid #2d3748;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 1.25rem 1.5rem;
     }
 
-    .card.error { border-color: #7f1d1d; background: #1c1010; }
+    .card.error { border-color: var(--border-error); background: var(--bg-card-error); }
 
     .card-header {
       margin-bottom: 1rem;
@@ -138,7 +246,7 @@
     }
 
     .drag-handle {
-      color: #334155;
+      color: var(--handle);
       cursor: grab;
       font-size: 1rem;
       line-height: 1.3;
@@ -147,18 +255,38 @@
     }
     .drag-handle:active { cursor: grabbing; }
 
-    .card-header-text { flex: 1; }
+    .card-header-text { flex: 1; min-width: 0; }
 
     .station-name {
       font-size: 1.05rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--text-station);
       line-height: 1.3;
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 0.1rem 0.25rem;
+      margin: -0.1rem -0.25rem;
+    }
+    .station-name:hover { background: var(--bg-row); }
+
+    .station-name-input {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-station);
+      line-height: 1.3;
+      background: var(--bg-input);
+      border: 1px solid var(--link);
+      border-radius: 4px;
+      padding: 0.1rem 0.25rem;
+      margin: -0.1rem -0.25rem;
+      width: 100%;
+      outline: none;
+      font-family: inherit;
     }
 
     .cached-at {
       font-size: 0.72rem;
-      color: #475569;
+      color: var(--text-dim);
       margin-top: 0.15rem;
       min-height: 1em;
     }
@@ -166,38 +294,34 @@
     .btn-remove {
       background: none;
       border: none;
-      color: #475569;
+      color: var(--text-dim);
       font-size: 1rem;
       cursor: pointer;
       line-height: 1;
       padding: 0;
       flex-shrink: 0;
     }
-    .btn-remove:hover { color: #f87171; }
+    .btn-remove:hover { color: var(--text-error); }
 
     .sortable-ghost { opacity: 0.3; }
 
-    /* Skeleton loading */
+    /* --- Skeleton --- */
     @keyframes shimmer {
       0%   { background-position: -400px 0; }
       100% { background-position: 400px 0; }
     }
 
     .skeleton {
-      background: linear-gradient(90deg, #252d3d 25%, #2d3748 50%, #252d3d 75%);
+      background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 50%, var(--skeleton-a) 75%);
       background-size: 400px 100%;
       animation: shimmer 1.4s infinite;
       border-radius: 8px;
     }
 
-    .skeleton-row {
-      height: 40px;
-      margin-bottom: 0.5rem;
-    }
-
+    .skeleton-row { height: 40px; margin-bottom: 0.5rem; }
     .skeleton-row:last-child { margin-bottom: 0; }
 
-    /* Prices */
+    /* --- Prices --- */
     .prices { display: flex; flex-direction: column; gap: 0.5rem; }
 
     .price-row {
@@ -205,28 +329,28 @@
       justify-content: space-between;
       align-items: center;
       padding: 0.45rem 0.75rem;
-      background: #252d3d;
+      background: var(--bg-row);
       border-radius: 8px;
     }
 
-    .grade { font-size: 0.85rem; color: #94a3b8; }
+    .grade { font-size: 0.85rem; color: var(--text-muted); }
 
     .price-value {
       font-size: 1.15rem;
       font-weight: 700;
-      color: #4ade80;
+      color: var(--text-price);
       font-variant-numeric: tabular-nums;
     }
 
-    .no-prices { font-size: 0.85rem; color: #475569; padding: 0.5rem 0; }
-    .error-msg { font-size: 0.85rem; color: #f87171; padding: 0.5rem 0; }
+    .no-prices { font-size: 0.85rem; color: var(--text-dim); padding: 0.5rem 0; }
+    .error-msg { font-size: 0.85rem; color: var(--text-error); padding: 0.5rem 0; }
 
-    /* Chart */
+    /* --- Chart --- */
     .chart-wrap {
       margin-top: 1rem;
       padding-top: 1rem;
       padding-bottom: 0.5rem;
-      border-top: 1px solid #2d3748;
+      border-top: 1px solid var(--border);
       height: 280px;
       position: relative;
     }
@@ -239,9 +363,9 @@
     }
 
     .chart-days button {
-      background: #252d3d;
-      border: 1px solid #374151;
-      color: #94a3b8;
+      background: var(--bg-row);
+      border: 1px solid var(--border-input);
+      color: var(--text-muted);
       font-size: 0.7rem;
       padding: 0.15rem 0.5rem;
       border-radius: 4px;
@@ -249,23 +373,23 @@
     }
 
     .chart-days button.active {
-      background: #1d4ed8;
-      border-color: #1d4ed8;
+      background: var(--accent);
+      border-color: var(--accent);
       color: #fff;
     }
 
     .chart-loading {
       font-size: 0.75rem;
-      color: #475569;
+      color: var(--text-dim);
       text-align: center;
       padding: 1rem 0;
     }
 
     footer {
-      max-width: 960px;
+      max-width: 1200px;
       margin: 2rem auto 0;
       font-size: 0.75rem;
-      color: #334155;
+      color: var(--text-footer);
       text-align: center;
     }
   </style>
@@ -278,6 +402,7 @@
     Auto-refreshes every 5 min &nbsp;·&nbsp;
     <a href="/refresh">Force refresh</a>
     <button class="btn-add" onclick="openModal()">+ Add Station</button>
+    <button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Toggle theme"></button>
   </div>
 </header>
 
@@ -303,14 +428,13 @@
     <div class="card-header">
       <span class="drag-handle" title="Drag to reorder">⠿</span>
       <div class="card-header-text">
-        <div class="station-name">{{ station.nickname }}</div>
+        <div class="station-name" onclick="startRename(this, '{{ station.id }}')" title="Click to rename">{{ station.nickname }}</div>
         <div class="cached-at" id="age-{{ station.id }}"></div>
       </div>
       <button class="btn-remove" title="Remove station" onclick="removeStation('{{ station.id }}', this)">✕</button>
     </div>
 
     <div id="prices-{{ station.id }}">
-      <!-- Skeleton shown while prices load -->
       <div class="skeleton skeleton-row"></div>
       <div class="skeleton skeleton-row"></div>
     </div>
@@ -343,6 +467,10 @@ const GRADE_COLORS = {
 
 const _charts = {};
 
+function css(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 async function loadChart(stationId, days, btn) {
   btn.closest('.chart-days').querySelectorAll('button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -371,6 +499,10 @@ async function loadChart(stationId, days, btn) {
   loading.style.display = 'none';
   canvas.style.display  = 'block';
 
+  const tickColor = css('--text-dim');
+  const gridColor = css('--grid-line');
+  const legendColor = css('--text-muted');
+
   const datasets = grades.map(grade => ({
     label: grade,
     data: data[grade].map(p => ({ x: p.time, y: p.price })),
@@ -394,7 +526,7 @@ async function loadChart(stationId, days, btn) {
         legend: {
           position: 'top',
           align: 'start',
-          labels: { color: '#94a3b8', boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10 } },
+          labels: { color: legendColor, boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10 } },
         },
         tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(3)}` } },
       },
@@ -411,20 +543,27 @@ async function loadChart(stationId, days, btn) {
               month: 'MMM',
             },
           },
-          ticks: {
-            color: '#475569',
-            maxTicksLimit: 5,
-            autoSkip: true,
-            font: { size: 10 },
-          },
-          grid: { color: '#1e2a3a' },
+          ticks: { color: tickColor, maxTicksLimit: 5, autoSkip: true, font: { size: 10 } },
+          grid: { color: gridColor },
         },
         y: {
-          ticks: { color: '#475569', font: { size: 10 }, callback: v => '$' + v.toFixed(2) },
-          grid: { color: '#1e2a3a' },
+          grace: '5%',
+          ticks: { color: tickColor, font: { size: 10 }, callback: v => '$' + v.toFixed(2) },
+          grid: { color: gridColor },
         },
       },
     },
+  });
+}
+
+function reloadAllCharts() {
+  document.querySelectorAll('.chart-wrap').forEach(wrap => {
+    if (wrap.style.display === 'none') return;
+    const btn = wrap.querySelector('button.active');
+    if (!btn) return;
+    const stationId = wrap.id.replace('chart-wrap-', '');
+    const days = parseInt(btn.textContent);
+    loadChart(stationId, days, btn);
   });
 }
 
@@ -497,6 +636,64 @@ function applyOrder() {
   });
 }
 
+// --- Rename ---
+function startRename(el, stationId) {
+  const current = el.textContent.trim();
+  const input = document.createElement('input');
+  input.className = 'station-name-input';
+  input.value = current;
+  el.replaceWith(input);
+  input.focus();
+  input.select();
+
+  async function save() {
+    const newName = input.value.trim() || current;
+    const div = document.createElement('div');
+    div.className = 'station-name';
+    div.setAttribute('onclick', `startRename(this, '${stationId}')`);
+    div.setAttribute('title', 'Click to rename');
+    div.textContent = newName;
+    input.replaceWith(div);
+
+    if (newName !== current) {
+      await fetch(`/api/stations/${stationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: newName }),
+      });
+    }
+  }
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = current; input.blur(); }
+  });
+}
+
+// --- Theme ---
+const THEME_KEY = 'gas-prices-theme';
+
+function getEffectiveTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved) return saved;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+function applyThemeIcon() {
+  const btn = document.getElementById('btn-theme');
+  btn.textContent = getEffectiveTheme() === 'dark' ? '☀️' : '🌙';
+}
+
+function toggleTheme() {
+  const current = getEffectiveTheme();
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  document.documentElement.setAttribute('data-theme', next);
+  applyThemeIcon();
+  reloadAllCharts();
+}
+
 // --- Modal ---
 function openModal() {
   document.getElementById('inp-id').value = '';
@@ -564,6 +761,7 @@ async function removeStation(stationId, btn) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  applyThemeIcon();
   applyOrder();
 
   Sortable.create(document.getElementById('grid'), {
