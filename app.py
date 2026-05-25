@@ -131,6 +131,17 @@ def api_add_station():
     return jsonify({"ok": True})
 
 
+@app.route("/api/stations/<station_id>", methods=["PUT"])
+def api_rename_station(station_id: str):
+    data = request.get_json()
+    nickname = str(data.get("nickname", "")).strip()
+    if not nickname:
+        return jsonify({"error": "Nickname is required"}), 400
+    storage.rename_station(station_id, nickname)
+    log.info("Renamed station %s to '%s'", station_id, nickname)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/stations/<station_id>", methods=["DELETE"])
 def api_remove_station(station_id: str):
     storage.remove_station(station_id)

@@ -58,6 +58,14 @@ def add_station(station_id: str, nickname: str):
         )
 
 
+def rename_station(station_id: str, nickname: str):
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE stations SET nickname = ? WHERE id = ?",
+            (nickname, station_id),
+        )
+
+
 def remove_station(station_id: str):
     with _connect() as conn:
         conn.execute("DELETE FROM stations WHERE id = ?", (station_id,))
