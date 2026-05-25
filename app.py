@@ -88,8 +88,22 @@ def fetch_all_stations() -> list[dict]:
 
 @app.route("/")
 def index():
-    stations = fetch_all_stations()
-    return render_template("index.html", stations=stations, now=time.time())
+    # Just pass station metadata — prices are fetched async by the browser
+    stations = [{"id": s["id"], "nickname": s["nickname"]} for s in storage.get_stations()]
+    return render_template("index.html", stations=stations)
+
+
+@app.route("/api/prices")
+def api_prices():
+    results = fetch_all_stations()
+    return jsonify({
+        s["id"]: {
+            "prices": s["prices"],
+            "error": s["error"],
+            "cached_at": s["cached_at"],
+        }
+        for s in results
+    })
 
 
 @app.route("/api/stations", methods=["POST"])

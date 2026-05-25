@@ -35,7 +35,6 @@
     .meta a { color: #3b82f6; text-decoration: none; }
     .meta a:hover { text-decoration: underline; }
 
-    /* Add station button */
     .btn-add {
       background: #1d4ed8;
       color: #fff;
@@ -69,7 +68,6 @@
     }
 
     .modal h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #f1f5f9; }
-
     .modal label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem; }
 
     .modal input {
@@ -162,6 +160,7 @@
       font-size: 0.72rem;
       color: #475569;
       margin-top: 0.15rem;
+      min-height: 1em;
     }
 
     .btn-remove {
@@ -178,6 +177,27 @@
 
     .sortable-ghost { opacity: 0.3; }
 
+    /* Skeleton loading */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, #252d3d 25%, #2d3748 50%, #252d3d 75%);
+      background-size: 400px 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 8px;
+    }
+
+    .skeleton-row {
+      height: 40px;
+      margin-bottom: 0.5rem;
+    }
+
+    .skeleton-row:last-child { margin-bottom: 0; }
+
+    /* Prices */
     .prices { display: flex; flex-direction: column; gap: 0.5rem; }
 
     .price-row {
@@ -201,15 +221,15 @@
     .no-prices { font-size: 0.85rem; color: #475569; padding: 0.5rem 0; }
     .error-msg { font-size: 0.85rem; color: #f87171; padding: 0.5rem 0; }
 
+    /* Chart */
     .chart-wrap {
       margin-top: 1rem;
       padding-top: 1rem;
+      padding-bottom: 0.5rem;
       border-top: 1px solid #2d3748;
+      height: 280px;
       position: relative;
-      height: 140px;
     }
-
-    .chart-wrap canvas { display: block; }
 
     .chart-days {
       display: flex;
@@ -279,33 +299,23 @@
 
 <div class="grid" id="grid">
   {% for station in stations %}
-  <div class="card {% if station.error %}error{% endif %}" data-id="{{ station.id }}">
+  <div class="card" data-id="{{ station.id }}">
     <div class="card-header">
       <span class="drag-handle" title="Drag to reorder">⠿</span>
       <div class="card-header-text">
-        <div class="station-name">{{ station.name or station.nickname }}</div>
-        <div class="cached-at">Updated {{ ((now - station.cached_at) / 60)|int }} min ago</div>
+        <div class="station-name">{{ station.nickname }}</div>
+        <div class="cached-at" id="age-{{ station.id }}"></div>
       </div>
       <button class="btn-remove" title="Remove station" onclick="removeStation('{{ station.id }}', this)">✕</button>
     </div>
 
-    {% if station.error %}
-      <div class="error-msg">Could not fetch prices — check station ID or network.</div>
-    {% elif station.prices %}
-      <div class="prices">
-        {% for p in station.prices %}
-        <div class="price-row">
-          <span class="grade">{{ p.grade }}</span>
-          <span class="price-value">${{ "%.3f"|format(p.price) }}</span>
-        </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="no-prices">No price data available.</div>
-    {% endif %}
+    <div id="prices-{{ station.id }}">
+      <!-- Skeleton shown while prices load -->
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+    </div>
 
-    {% if not station.error %}
-    <div class="chart-wrap">
+    <div class="chart-wrap" id="chart-wrap-{{ station.id }}" style="display:none">
       <div class="chart-days">
         <button onclick="loadChart('{{ station.id }}', 1, this)">1d</button>
         <button onclick="loadChart('{{ station.id }}', 7, this)" class="active">7d</button>
@@ -314,8 +324,6 @@
       <div id="loading-{{ station.id }}" class="chart-loading">Loading history…</div>
       <canvas id="chart-{{ station.id }}" style="display:none"></canvas>
     </div>
-    {% endif %}
-
   </div>
   {% endfor %}
 </div>
@@ -383,14 +391,32 @@ async function loadChart(stationId, days, btn) {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
+        legend: {
+          position: 'top',
+          align: 'start',
+          labels: { color: '#94a3b8', boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10 } },
+        },
         tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(3)}` } },
       },
       scales: {
         x: {
           type: 'time',
-          time: { tooltipFormat: 'MMM d, h:mm a' },
-          ticks: { color: '#475569', maxTicksLimit: 6, font: { size: 10 } },
+          time: {
+            tooltipFormat: 'MMM d, h:mm a',
+            displayFormats: {
+              minute: 'h:mm a',
+              hour: 'h a',
+              day: 'MMM d',
+              week: 'MMM d',
+              month: 'MMM',
+            },
+          },
+          ticks: {
+            color: '#475569',
+            maxTicksLimit: 5,
+            autoSkip: true,
+            font: { size: 10 },
+          },
           grid: { color: '#1e2a3a' },
         },
         y: {
@@ -400,6 +426,57 @@ async function loadChart(stationId, days, btn) {
       },
     },
   });
+}
+
+// --- Prices ---
+function formatAge(cachedAt) {
+  const mins = Math.floor((Date.now() / 1000 - cachedAt) / 60);
+  return mins < 1 ? 'Just updated' : `Updated ${mins} min ago`;
+}
+
+function renderPrices(stationId, data) {
+  const card = document.querySelector(`[data-id="${stationId}"]`);
+  const pricesEl = document.getElementById(`prices-${stationId}`);
+  const ageEl    = document.getElementById(`age-${stationId}`);
+  const wrapEl   = document.getElementById(`chart-wrap-${stationId}`);
+
+  ageEl.textContent = formatAge(data.cached_at);
+
+  if (data.error) {
+    card.classList.add('error');
+    pricesEl.innerHTML = '<div class="error-msg">Could not fetch prices — check station ID or network.</div>';
+    return;
+  }
+
+  if (!data.prices.length) {
+    pricesEl.innerHTML = '<div class="no-prices">No price data available.</div>';
+    return;
+  }
+
+  pricesEl.innerHTML = '<div class="prices">' +
+    data.prices.map(p =>
+      `<div class="price-row">
+        <span class="grade">${p.grade}</span>
+        <span class="price-value">$${p.price.toFixed(3)}</span>
+      </div>`
+    ).join('') +
+  '</div>';
+
+  wrapEl.style.display = 'block';
+  loadChart(stationId, 7, wrapEl.querySelector('button.active'));
+}
+
+async function loadAllPrices() {
+  try {
+    const res  = await fetch('/api/prices');
+    const data = await res.json();
+    Object.entries(data).forEach(([id, info]) => renderPrices(id, info));
+  } catch (e) {
+    document.querySelectorAll('.skeleton').forEach(el => {
+      el.classList.remove('skeleton');
+      el.textContent = 'Could not load prices.';
+    });
+  }
 }
 
 // --- Card ordering ---
@@ -420,7 +497,7 @@ function applyOrder() {
   });
 }
 
-// --- Add station modal ---
+// --- Modal ---
 function openModal() {
   document.getElementById('inp-id').value = '';
   document.getElementById('inp-nick').value = '';
@@ -438,13 +515,12 @@ function closeOnBackdrop(e) {
 }
 
 async function addStation() {
-  const id   = document.getElementById('inp-id').value.trim();
-  const nick = document.getElementById('inp-nick').value.trim();
+  const id    = document.getElementById('inp-id').value.trim();
+  const nick  = document.getElementById('inp-nick').value.trim();
   const errEl = document.getElementById('modal-error');
   const saveBtn = document.getElementById('btn-save');
 
   errEl.style.display = 'none';
-
   if (!id) {
     errEl.textContent = 'Station ID is required.';
     errEl.style.display = 'block';
@@ -455,7 +531,7 @@ async function addStation() {
   saveBtn.textContent = 'Adding…';
 
   try {
-    const res = await fetch('/api/stations', {
+    const res  = await fetch('/api/stations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, nickname: nick }),
@@ -481,7 +557,6 @@ async function removeStation(stationId, btn) {
   if (!confirm('Remove this station?')) return;
   const res = await fetch(`/api/stations/${stationId}`, { method: 'DELETE' });
   if (res.ok) {
-    // Remove from saved order too
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved.filter(id => id !== stationId)));
     btn.closest('.card').remove();
@@ -498,12 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
     onEnd: saveOrder,
   });
 
-  {% for station in stations %}
-  {% if not station.error %}
-  loadChart('{{ station.id }}', 7, document.querySelector('#chart-{{ station.id }}')
-    .closest('.chart-wrap').querySelector('button.active'));
-  {% endif %}
-  {% endfor %}
+  loadAllPrices();
 });
 </script>
 
